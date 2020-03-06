@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<!-- Basic Styling -->
+	<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+
+	<!-- Use Google Charts for visualisation -->
+	<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+
+	<script type="text/javascript">   // Contains all the Inquire API calls
+		async function login(server, username, password) {
+			return fetch(`${backendUrl(server)}auth/login`, {
+				method: 'post',
+				headers: {
+					"Content-type": "application/json; charset=utf-8"
+				},
+				body: `{"pass":"${password}","user":"${username}"}`
+			})
+			.then(throwOnError)
+			.then(text);
+		}
+
+		async function runquery(server, lds, authentication, query) {
+			var startqueryresult = await fetch(`${backendUrl(server)}tql/submit?index=${encodeURI(lds)}&timeout=1200`, {
+				method: 'post',
+				headers: {
+					"Authorization": authentication,
+					"Content-type": "application/x-www-form-urlencoded"
+				},
+				body: `query=${encodeURIComponent(query)}&index=${encodeURI(lds)}`
+			})
+			.then(throwOnError)
+			.then(json);
+
+			console.log('Running query...', query);
+
+			const poll = async queryid => {
+				let response = null
+				do {
+					// console.log("polling", queryid);
+					response = await fetch(`${backendUrl(server)}tql/poll?id=${queryid}`, {
+						headers: {
+							"Authorization": authentication,
+							"Content-type": "application/json; charset=utf-8"
+						}
+					})
+						.then(throwOnError)
+						.then(json);
+				}
+				while (response.type != "final")
+				return response;
+			}
+
+			return poll(startqueryresult.id);
+		}
+
+		function throwOnError(response) {
+			if (response.ok) {
+				return response;
+			} else {
+				throw new Error(`[${response.status}]: ${response.statusText}`);
+			}
+		}
+
+		function json(response) {
+			return response.json()
+		}
+
+		function text(response) {
+			return response.text()
+		}
+
+		function backendUrl(server) {
+			return server + "teneo-inquire-query/rest/";
+		}
+	</script>
+
+	<script type="text/javascript">    // Page functionality starts here...
+
+		// You can pass parameters server / lds - if they are not set then defaults are used
+		var server = paramOrDefault("server", "https://your_team_name.data.teneo.ai/");
+		var lds = paramOrDefault("lds", "your_lds_here");
+		var authentication = "";
+		if (sessionStorage['authentication']) {
+			authentication = sessionStorage['authentication'];
+		}
+
+		// So the graphs can be redrawn without re-querying we store the data after it is loaded the first time
+		var sessionsData;
+		var flowWeightData;
+		var sessionPathData;
+		var inputBreakdownData;
+		var inputBreakdownOptions;
+
+		// Used to get a named parameter (or default value) from the page url parameters
+		function paramOrDefault(paramName, defaultValue) {
+			let pageUrl = new URL(window.location.href);
+			let paramValue = pageUrl.searchParams.get(paramName);
+			if (paramValue) return paramValue;
+			return defaultValue;
+		}
+
+		// Called on initial load of the page
+		async function load() {
+
+			titleElement.innerText = `${lds}`
+
+			google.charts.load('current', { packages: ['bar'] });
+			google.charts.load('current', { packages: ['wordtree'] });
+			google.charts.load("current", { packages: ["sankey"] });
+			google.charts.load('current', { packages: ['corechart'] });
+
+			try {
+				if (authentication) {
+					hideLoginPrompt();
+					// If we're already authenticated then don't ask.
+					// Only load charts once google chart libraries are fully loaded
+					google.charts.setOnLoadCallback(drawAllCharts);
+				}
+			}
+			catch (error) {
+				console.log("drawing from preloaded data", error);
+				google.charts.load('current', { packages: ['corechart'] });
+				google.charts.setOnLoadCallback(function () {
+					google.visualization.errors.addError(piechart, error.name, error.message, { 'showInTooltip': false });
+				});
+
+				return;
+			}
+		}
+
+		// Called when the body resizes
+		async function resize() {
+			drawAllCharts();
+		}
+
+		// Hides the login prompt
+		async function hideLoginPrompt() {
+			loginPopup.style.display = "none";
+		}
+
+		// Used by the login submit - to continue login and cancel the reload of the page
+		function submitLogin(f) {
+			loginAndContinue(f);
+			return false;
+		}
+
+		// Authenticate, then trigger the drawing of the graphs
+		async function loginAndContinue(f) {
+			try {
+				authentication = await login(server, f.username.value, f.password.value)
+
+				// store token in session storage so we can reload page without needing to login again
+				if (authentication) {
+					sessionStorage['authentication'] = authentication;
+				}
+				f.style.display = "none";
+
+				drawAllCharts();
+			}
+			catch (error) {
+				console.log("Login failed", error);
+				google.charts.load('current', { packages: ['corechart'] });
+				google.charts.setOnLoadCallback(function () {
+					google.visualization.errors.addError(loginPopup, error.name, error.message, { 'showInTooltip': false });
+				});
+
+				return;
+			}
+		}
+
+		// ----------- Graph drawing from here on -----------
+		function drawAllCharts() {
+			if (!authentication) return; // Don't try to do anything if we're not logged in
+
+			resultsContainer.style.visibility = "visible";
+
+			drawSessionsBarChart();
+			drawWordTree();
+			drawPieChart();
+			drawSankey();
+		}
+
+		// sessions per day
+		async function drawSessionsBarChart() {
+			
+			
+			// get data for chart
+			if (!sessionsData) {
+				console.log('Loading sessions per day data');
+				let queryresponse = await runquery(server, lds, authentication, 'd date : catd(model="date") s.beginTime as date order by date asc');
+
+				if (queryresponse) {
+
+					sessionsData = new google.visualization.DataTable();
+
+					// add columns
+					sessionsData.addColumn('string', 'Date');
+					sessionsData.addColumn('number', 'Count');
+
+					// iterate query results and add date and count to sessionData
+					queryresponse.result.forEach(function (day) {
+						sessionsData.addRow([day.date, day.count]);
+					});
+
+				}
+			}
+
+			// draw chart if data is available
+			if (sessionsData) {
+				console.log('Drawing sessions per day bar chart');
+				// Optional; add a title and set the width and height of the chart
+				var options = {
+					height: 400,
+					colors: ['#311b92'],
+					legend: { position: 'none' }
+				};
+
+				// Display the chart inside the <div> element with id="sessionsBarChart"
+				var chart = new google.charts.Bar(document.getElementById('sessionsPerDay'));
+				chart.draw(sessionsData, options);
+				sessionsPerDayLoading.style.visibility = "hidden";
+				console.log('Drawn sessions per day bar chart');
+			}
+		}
+
+
+		// Input words tree
+		async function drawWordTree() {
+			if (!inputBreakdownData) {
+				console.log('Loading input word data');
+				inputBreakdownOptions = {
+					wordtree: {
+						format: 'implicit',
+						type: 'double'
+					}
+				};
+
+				inputBreakdownData = new google.visualization.DataTable();
+				inputBreakdownData.addColumn('string', 'Inputs');
+
+				let wordqueryresult = await runquery(server, lds, authentication, 'd t.e.userInputWords as word : t.e.userInputWords != "" order by count desc limit 1');
+				if (wordqueryresult.result.length > 0) {
+					inputBreakdownOptions.wordtree.word = wordqueryresult.result[0].word;
+				}
+
+				let inputsqueryresult = await runquery(server, lds, authentication, "lu t.e.userInput as text");
+				inputsqueryresult.result.forEach(function (input) {
+					if (null != input.text) {
+						inputBreakdownData.addRow([input.text.toLowerCase()]);
+					}
+				});
+			}
+
+			console.log('Drawing input word tree');
+
+			var chart = new google.visualization.WordTree(document.getElementById('inputBreakdown'));
+			chart.draw(inputBreakdownData, inputBreakdownOptions);
+			inputBreakdownLoading.style.visibility = "hidden";
+
+			console.log('Drawn input word tree');
+		}
+
+		// Flow weightings pie chart
+		async function drawPieChart() {
+			if (!flowWeightData) {
+				console.log('Loading flow weighting data');
+				flowWeightData = new google.visualization.DataTable();
+
+				let queryresponse = await runquery(server, lds, authentication, 'd t.e.fname as name : t.e.pathType == "flow-trigger" order by count desc limit 10');
+
+				flowWeightData.addColumn('string', 'Flow Name');
+				flowWeightData.addColumn('number', 'Count');
+				queryresponse.result.forEach(function (flowcount) {
+					flowWeightData.addRow([flowcount.name, flowcount.count]);
+				});
+			}
+
+			console.log('Drawing flow weight pie chart');
+
+			// Optional; add a title and set the width and height of the chart
+			var options = { height: 600, chartArea: { width: '75%' }, legend: { position: 'labeled' } };
+
+			// Display the chart inside the <div> element with id="piechart"
+			var chart = new google.visualization.PieChart(document.getElementById('flowWeight'));
+			chart.draw(flowWeightData, options);
+			flowWeightLoading.style.visibility = "hidden";
+
+			console.log('Drawn flow weights');
+		}
+
+		async function drawSankey() {
+			if (!sessionPathData) {
+				console.log('Loading session path data');
+				sessionPathData = new google.visualization.DataTable();
+
+				sessionPathData.addColumn('string', 'From');
+				sessionPathData.addColumn('string', 'To');
+				sessionPathData.addColumn('number', 'Weight');
+
+				let queryresponse = await runquery(server, lds, authentication, 'd e1.fname as source, e2.fname as destination : e1.pathType == "raise-flow", e1-{pathType == "raise-flow"}>e2, e1.fname != e2.fname limit 50');
+
+				let edgeMap = new Map();
+				queryresponse.result.forEach(function (entry) {
+					let entrySet = edgeMap.get(entry.source);
+					if (entrySet == null) {
+						//console.log('adding map entry', entry.source);
+						entrySet = new Set();
+						edgeMap.set(entry.source, entrySet);
+					}
+
+					let doAdd = true;
+					if (findCycle(edgeMap, entry.source, entry.source)) {
+						// console.log('cyclic entry adjusted (source)', `${entry.source}:${entry.destination}`);
+						entry.source += " (cycle)";
+					}
+					else if (findCycle(edgeMap, entry.source, entry.destination)) {
+						// console.log('cyclic entry adjusted (destination)', `${entry.source}:${entry.destination}`);
+						entry.destination += " (cycle)";
+					}
+
+					if (doAdd) {
+						entrySet.add(entry.destination);
+						//console.log('adding row entry', `${entry.source}:${entry.destination} [${entry.count}]`);
+						sessionPathData.addRow([entry.source, entry.destination, entry.count]);
+					}
+				});
+			}
+
+			console.log('Drawing session path sankey');
+
+			// Set chart options
+			var options = { height: 500 };
+
+			// Instantiate and draw our chart, passing in some options.
+			var chart = new google.visualization.Sankey(document.getElementById('sessionPath'));
+			chart.draw(sessionPathData, options);
+			sessionPathLoading.style.visibility = "hidden";
+
+			console.log('Drawn session path sankey');
+		}
+
+		function findCycle(edgeMap, originalsource, source) {
+			// foreach new entry
+			// check all existing entries, starting from source and following all destinations
+			let sourceSet = edgeMap.get(source);
+			if (null != sourceSet) {
+				if (sourceSet.has(originalsource)) {
+					return true;
+				}
+				else {
+					let cycleFound = false;
+					sourceSet.forEach(function (d) {
+						if (findCycle(edgeMap, originalsource, d)) cycleFound = true;
+					});
+					return cycleFound;
+				}
+			}
+			return false;
+		}
+	</script>
+</head>
+
+<body onload="load()" onresize="resize()">
+	<header class="w3-container w3-light-grey">
+		<h1 id="titleElement"></h1>
+	</header>
+
+	<div id="loginPopup">
+		<form id="loginForm" action="login" onsubmit="return submitLogin(this);">
+			<center>Username:</center>
+			<center><input name="username" size="26" /></center>
+			<center>Password:</center>
+			<center><input name="password" type="password" size="26" /></center>
+			<center><input type="submit" value="Login" style="margin: 2px" /></center>
+		</form>
+	</div>
+
+	<div id="resultsContainer" style="visibility: hidden">
+		<div class="w3-container">
+			<h4>Sessions Per Day</h4>
+			<h6 id="sessionsPerDayLoading">Loading...</h6>
+		</div>
+		<div id="sessionsPerDay" style="height: 25%; margin: 1%"></div>
+		<div class="w3-container">
+			<h4>Triggered Flows</h4>
+			<h6 id="flowWeightLoading">Loading...</h6>
+		</div>
+		<div id="flowWeight" style="height: 25%; margin: 1%"></div>
+		<div class="w3-container">
+			<h4>Input Breakdown</h4>
+			<h6 id="inputBreakdownLoading">Loading...</h6>
+		</div>
+		<div id="inputBreakdown" style="height: 25%; margin: 1%"></div>
+		<div class="w3-container">
+			<h4>Session Paths</h4>
+			<h6 id="sessionPathLoading">Loading...</h6>
+		</div>
+		<div id="sessionPath" style="height: 25%; margin: 1%"></div>
+	</div>
+</body>
+<html>
