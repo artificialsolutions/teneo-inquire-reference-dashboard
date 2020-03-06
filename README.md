@@ -7,7 +7,7 @@ The dashboard contains a login form that allows users to login using their Teneo
 - A clickable word tree based on words that are most frequently used by users
 - A sankey diagram that shows the session travel paths 
 
-To draw these diagrams the dashboard uses (Google Charts)(https://developers.google.com/chart).
+To draw these diagrams the dashboard uses [Google Charts](https://developers.google.com/chart).
 
 The dashboard is created as single file with minimal styling.
 
