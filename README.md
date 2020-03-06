@@ -9,7 +9,7 @@ The dashboard contains a login form that allows users to login using their Teneo
 
 To draw these diagrams the dashboard uses [Google Charts](https://developers.google.com/chart).
 
-The dashboard is created as single file with minimal styling.
+The dashboard is created as single file with minimal styling that can be opened in a browser.
 
 ## Prerequisites
 Before you can use the dashboard you need to have the following:
@@ -24,10 +24,10 @@ The Teneo Inquire URL looks like this:
 https://[your_team_name].data.teneo.ai/
 ```
 
-You should replace `[your team name]` with the name of your team. You can find it in the top right corner when you login to your [Teneo.ai environment](https://www.teneo.ai/manage/environment) in the browser.
+You should replace `[your team name]` with the name of your team. You can find it in the top right corner when you login to your [environment](https://www.teneo.ai/manage/environment) in the browser.
 
 ### Log Data Source (LDS)
-Additionally you need the name of the Log Data Source of your solution. You can find it by opening the [teneo.ai bots](https://www.teneo.ai/manage/bots) page in your browser. The LSD is the last part of the Engine URL of your published solution. For example, if the Engine URL of your solution is url is:
+Additionally you need the name of the Log Data Source of your solution. You can find it by opening the [bots](https://www.teneo.ai/manage/bots) page in your browser. The LSD is the last part of the Engine URL of your published solution. For example, if the Engine URL of your solution is url is:
 
 ```
 https://longberry-xxxxx.bots.teneo.ai/longberry_baristas_5jz1h5hxjb3j0931gx7qxwbns2
@@ -55,7 +55,7 @@ Both options are be outlined below:
 ### Option 2: provide url parameters
 - Download the InquireReferenceDashbaord.html
 - Open InquireReferenceDashbaord.html in your browser
-- Add the following url parameters at the end of url `?server=your_teneo_inquire_url/&lds=your_lds_name`
+- Add the following url parameters at the end of url `?lds=your_lds_name&server=your_teneo_inquire_url&lds=your_lds_name`
     - Make sure you replace `your_teneo_inquire_url` and `your_lds_name` with the appropriate values
 - Hit enter or reload the page in the browser
 
