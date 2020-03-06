@@ -27,7 +27,7 @@ https://[your_team_name].data.teneo.ai/
 You should replace `[your team name]` with the name of your team. You can find it in the top right corner when you login to your [environment](https://www.teneo.ai/manage/environment) in the browser.
 
 ### Log Data Source (LDS)
-Additionally you need the name of the Log Data Source of your solution. You can find it by opening the [bots](https://www.teneo.ai/manage/bots) page in your browser. The LSD is the last part of the Engine URL of your published solution. For example, if the Engine URL of your solution is url is:
+Additionally you need the name of the Log Data Source of your solution. You can find it by opening the [bots](https://www.teneo.ai/manage/bots) page in your browser. The LDS is the last part of the Engine URL of your published solution. For example, if the Engine URL of your solution is url is:
 
 ```
 https://longberry-xxxxx.bots.teneo.ai/longberry_baristas_5jz1h5hxjb3j0931gx7qxwbns2
