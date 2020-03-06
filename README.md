@@ -42,9 +42,9 @@ You can use the dashboard by opening the InquireReferenceDashboard.html file dir
 1) by editing the html file, or
 2) by providing the details as url parameters
 
-Both options will be outlined below
+Both options are be outlined below:
 
-### Option 1: editing the html file
+### Option 1: edit the html file
 - Download the InquireReferenceDashbaord.html
 - Open the file in a text editor and edit the lines
     - Line 85: replace `https://your_team_name.data.teneo.ai/` with the Teneo Inquire URL of your solution
@@ -52,7 +52,7 @@ Both options will be outlined below
 - Save your changes
 - Open InquireReferenceDashbaord.html in your browser
 
-### Option 2: providing url parameters
+### Option 2: provide url parameters
 - Download the InquireReferenceDashbaord.html
 - Open InquireReferenceDashbaord.html in your browser
 - Add the following url parameters at the end of url `?server=your_teneo_inquire_url/&lds=your_lds_name`
