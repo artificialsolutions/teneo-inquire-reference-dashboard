@@ -25,13 +25,13 @@
 		}
 
 		async function runquery(server, lds, authentication, query) {
-			var startqueryresult = await fetch(`${backendUrl(server)}tql/submit?index=${encodeURI(lds)}&timeout=1200`, {
+			var startqueryresult = await fetch(`${backendUrl(server)}tql/submit?lds=${encodeURI(lds)}&timeout=60&validateQuery=true`, {
 				method: 'post',
 				headers: {
-					"Authorization": authentication,
+					"Authorization": "Bearer " + authentication,
 					"Content-type": "application/x-www-form-urlencoded"
 				},
-				body: `query=${encodeURIComponent(query)}&index=${encodeURI(lds)}`
+				body: `query=${encodeURIComponent(query)}`
 			})
 			.then(throwOnError)
 			.then(json);
@@ -44,7 +44,7 @@
 					// console.log("polling", queryid);
 					response = await fetch(`${backendUrl(server)}tql/poll?id=${queryid}`, {
 						headers: {
-							"Authorization": authentication,
+							"Authorization": "Bearer " + authentication,
 							"Content-type": "application/json; charset=utf-8"
 						}
 					})
@@ -75,7 +75,7 @@
 		}
 
 		function backendUrl(server) {
-			return server + "teneo-inquire-query/rest/";
+			return server + "teneo-inquire/rest/";
 		}
 	</script>
 
@@ -366,7 +366,7 @@
 </head>
 
 <body onload="load()" onresize="resize()">
-	<header class="w3-container w3-light-grey">
+	<header class="w3-container w3-purple">
 		<h1 id="titleElement"></h1>
 	</header>
 
@@ -387,17 +387,17 @@
 		</div>
 		<div id="sessionsPerDay" style="height: 25%; margin: 1%"></div>
 		<div class="w3-container">
-			<h4>Triggered Flows</h4>
+			<h4>Most Popular Flows</h4>
 			<h6 id="flowWeightLoading">Loading...</h6>
 		</div>
 		<div id="flowWeight" style="height: 25%; margin: 1%"></div>
 		<div class="w3-container">
-			<h4>Input Breakdown</h4>
+			<h4>Word Cloud</h4>
 			<h6 id="inputBreakdownLoading">Loading...</h6>
 		</div>
 		<div id="inputBreakdown" style="height: 25%; margin: 1%"></div>
 		<div class="w3-container">
-			<h4>Session Paths</h4>
+			<h4>Customer Journey</h4>
 			<h6 id="sessionPathLoading">Loading...</h6>
 		</div>
 		<div id="sessionPath" style="height: 25%; margin: 1%"></div>
