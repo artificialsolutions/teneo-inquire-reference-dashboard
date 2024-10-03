@@ -1,3 +1,7 @@
+> [!IMPORTANT]
+> This project has been retired and archived  
+> If there is a need of continued use / development of this project for your own needs please feel free to fork the project - which will remain here in archived form.
+
 The Teneo Google Charts dashboard is an example page that can be used as a reference or starting point to develop web-based analytics dashboards for Teneo. 
 
 The dashboard contains a login form that allows you to login using your Teneo credentials. After you are logged in, the following charts are shown:
